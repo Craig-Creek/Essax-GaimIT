@@ -1,0 +1,9 @@
+{
+  "name": "Essax",
+  "short_name": "Essax",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F8F7F5",
+  "theme_color": "#E53935",
+  "description": "Essax writing studio"
+}
