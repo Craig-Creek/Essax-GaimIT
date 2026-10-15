@@ -507,14 +507,13 @@ class _TeamStrip extends StatelessWidget {
                 Container(
                   width: 35,
                   height: 35,
-                  decoration: BoxDecoration(color: team.$3.withValues(alpha: .2), borderRadius: BorderRadius.circular(11)),
-                  child: Center(child: Text(team.$1, style: TextStyle(color: team.$3, fontWeight: FontWeight.w900, fontSize: 17))),
+                  decoration: BoxDecoration(color: team.$4.withValues(alpha: .2), borderRadius: BorderRadius.circular(11)),
+                  child: Center(child: Text(team.$1, style: TextStyle(color: team.$4, fontWeight: FontWeight.w900, fontSize: 17))),
                 ),
                 const Spacer(),
                 Text(team.$2, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kCream, fontWeight: FontWeight.w800, fontSize: 12)),
                 const SizedBox(height: 4),
-                Text(team.$3 == kOlive ? team.$2 == 'Makers Lab' ? '4 members' : 'Community' : team.$2 == 'Code & Craft' ? '6 members' : '3 members',
-                    style: const TextStyle(color: kMuted, fontSize: 10.5)),
+                Text(team.$3, style: const TextStyle(color: kMuted, fontSize: 10.5)),
               ],
             ),
           );
