@@ -11,19 +11,11 @@ workflows:
       - name: Get Flutter packages
         script: flutter pub get
 
-      - name: Check Supabase configuration
-        script: |
-          if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "ERROR: SUPABASE_PUBLISHABLE_KEY is not configured."
-            echo "Configure it in Codemagic before building Essax."
-            exit 1
-          fi
-
       - name: Build APK
         script: |
           flutter build apk --release \
-            --dart-define=SUPABASE_URL="https://gkheslvcojucmlywoptk.supabase.co" \
-            --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+            --dart-define=SUPABASE_URL=https://sqtclmkfkvuwketnmhwm.supabase.co \
+            --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
 
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
