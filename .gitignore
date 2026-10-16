@@ -1,0 +1,151 @@
+# ============================================================
+# Essax — GaimIT LLC
+# Flutter / Dart / Android / Codemagic / Supabase
+# ============================================================
+
+# Operating systems
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editors and IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Flutter and Dart generated files
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+.generated/
+
+# Android build files and machine-specific settings
+android/.gradle/
+android/local.properties
+android/**/build/
+android/captures/
+android/.cxx/
+android/.externalNativeBuild/
+android/key.properties
+
+# Android signing keys and certificates
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+
+# iOS generated files
+ios/Flutter/.last_build_id
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/xcuserdata/
+
+# iOS provisioning files
+*.mobileprovision
+*.provisionprofile
+
+# macOS generated files
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/.symlinks/
+
+# Windows generated files
+windows/flutter/ephemeral/
+
+# Linux generated files
+linux/flutter/ephemeral/
+
+# Web generated cache
+web/canvaskit/
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Local credentials and secret files
+secrets/
+private/
+*.secret
+*.secrets
+secrets.json
+credentials.json
+service-account.json
+serviceAccountKey.json
+
+# Supabase local development files
+supabase/.env
+supabase/.env.*
+supabase/.temp/
+
+# Local-only Codemagic configuration
+codemagic.local.yaml
+codemagic.local.yml
+
+# Database backups and local databases
+*.sql.bak
+*.dump
+*.sqlite
+*.sqlite3
+*.db
+database-backups/
+db-backups/
+
+# Generated application builds
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
+*.symbols
+
+# Temporary files
+tmp/
+temp/
+.cache/
+*.tmp
+*.temp
+*.bak
+*.old
+*.orig
+*.rej
+
+# Essax local-only configuration
+essax.local.*
+local_config.*
+
+# ============================================================
+# IMPORTANT
+# Keep pubspec.yaml and pubspec.lock tracked.
+# Keep assets/fonts/NovaSP_GaimIT_GaimIT_LLC.ttf tracked.
+# Never commit Supabase secret or service_role keys.
+# ============================================================
