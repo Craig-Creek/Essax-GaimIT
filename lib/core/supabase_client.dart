@@ -11,7 +11,7 @@ class SupabaseConfig {
 
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://sqtclmkfkvuwketnmhwm.supabase.co',
+    defaultValue: 'https://gkheslvcojucmlywoptk.supabase.co',
   );
 
   static const String publishableKey = String.fromEnvironment(
