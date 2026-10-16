@@ -14,8 +14,8 @@ workflows:
       - name: Build APK
         script: |
           flutter build apk --release \
-            --dart-define=SUPABASE_URL=https://sqtclmkfkvuwketnmhwm.supabase.co \
-            --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+            --dart-define=SUPABASE_URL=https://gkheslvcojucmlywoptk.supabase.co \
+            --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_EjX2a2F9NBotee-xKQsO3A_4-Jz7hKd
 
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
