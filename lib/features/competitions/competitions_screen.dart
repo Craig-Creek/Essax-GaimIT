@@ -48,7 +48,7 @@ class _CompetitionsScreenState extends State<CompetitionsScreen> {
               return ListView(
                 children: [
                   const SizedBox(height: 100),
-                  Center(child: Text('Could not load competitions.\n${snapshot.error}')),
+                  Center(child: Text('Could not load competitions.')),
                 ],
               );
             }
