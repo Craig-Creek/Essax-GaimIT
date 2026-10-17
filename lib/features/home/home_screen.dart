@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/app_theme.dart';
-import '../../core/supabase_client.dart';
+import 'home_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,123 +11,59 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isCheckingConnection = false;
-  bool? _connectionAvailable;
-  String? _connectionMessage;
+  late Future<List<Map<String, dynamic>>> _competitionsFuture;
+  late Future<List<Map<String, dynamic>>> _discussionsFuture;
 
-  Future<void> _checkConnection() async {
-    setState(() {
-      _isCheckingConnection = true;
-      _connectionMessage = null;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadHomeData();
+  }
 
-    try {
-      // Accessing the client confirms that initialization completed.
-      // A lightweight Auth request checks whether the Supabase endpoint
-      // can be reached without requiring a database table.
-      await supabase.auth.getSession();
+  void _loadHomeData() {
+    _competitionsFuture = HomeService.getUpcomingCompetitions();
+    _discussionsFuture = HomeService.getRecentDiscussions();
+  }
 
-      if (!mounted) return;
+  Future<void> _refresh() async {
+    setState(_loadHomeData);
 
-      setState(() {
-        _connectionAvailable = true;
-        _connectionMessage = 'Supabase client is responding.';
-      });
-    } on AuthException catch (error) {
-      if (!mounted) return;
-
-      setState(() {
-        _connectionAvailable = false;
-        _connectionMessage = error.message;
-      });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _connectionAvailable = false;
-        _connectionMessage =
-            'Unable to check the connection. Please try again.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCheckingConnection = false;
-        });
-      }
-    }
+    await Future.wait([
+      _competitionsFuture,
+      _discussionsFuture,
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _checkConnection,
+          color: AppTheme.primary,
+          onRefresh: _refresh,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    _buildHeader(theme),
+                    _buildPageTitle(),
                     const SizedBox(height: 28),
-                    _buildWelcomeCard(theme, colors),
-                    const SizedBox(height: 28),
-                    _buildSectionHeader(
-                      context,
-                      title: 'Your community',
-                      subtitle: 'Everything happening in Essax',
+                    _buildSectionHeading(
+                      'Upcoming competitions',
+                      Icons.emoji_events_outlined,
                     ),
-                    const SizedBox(height: 16),
-                    _buildFeatureCard(
-                      context,
-                      icon: Icons.emoji_events_rounded,
-                      title: 'Competitions',
-                      description:
-                          'Discover challenges and opportunities to compete.',
-                      accent: AppTheme.primaryColor,
+                    const SizedBox(height: 14),
+                    _buildCompetitions(),
+                    const SizedBox(height: 32),
+                    _buildSectionHeading(
+                      'Recent discussions',
+                      Icons.forum_outlined,
                     ),
-                    const SizedBox(height: 12),
-                    _buildFeatureCard(
-                      context,
-                      icon: Icons.forum_rounded,
-                      title: 'Discussions',
-                      description:
-                          'Share ideas and connect with the community.',
-                      accent: AppTheme.secondaryColor,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildFeatureCard(
-                      context,
-                      icon: Icons.groups_rounded,
-                      title: 'Teams',
-                      description:
-                          'Find your people and build something together.',
-                      accent: AppTheme.primaryColor,
-                    ),
-                    const SizedBox(height: 28),
-                    _buildSectionHeader(
-                      context,
-                      title: 'Connection status',
-                      subtitle: 'Check your Essax backend connection',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildConnectionCard(theme, colors),
-                    const SizedBox(height: 20),
-                    Center(
-                      child: Text(
-                        'ESSAX  •  BY GAIMIT LLC',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          letterSpacing: 1.5,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.55),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 14),
+                    _buildDiscussions(),
                   ]),
                 ),
               ),
@@ -139,313 +74,348 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildPageTitle() {
+    return Text(
+      'Home',
+      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: AppTheme.text,
+          ),
+    );
+  }
+
+  Widget _buildSectionHeading(String title, IconData icon) {
     return Row(
       children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(
-            Icons.hub_rounded,
-            color: Colors.white,
-            size: 27,
-          ),
-        ),
-        const SizedBox(width: 12),
+        Icon(icon, color: AppTheme.primary, size: 23),
+        const SizedBox(width: 10),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ESSAX',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2,
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.text,
                 ),
-              ),
-              Text(
-                'Connect. Compete. Grow.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface
-                      .withValues(alpha: 0.65),
-                ),
-              ),
-            ],
           ),
-        ),
-        IconButton(
-          tooltip: 'Check Supabase connection',
-          onPressed: _isCheckingConnection ? null : _checkConnection,
-          icon: const Icon(Icons.sync_rounded),
         ),
       ],
     );
   }
 
-  Widget _buildWelcomeCard(ThemeData theme, ColorScheme colors) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.brightness == Brightness.dark
-            ? const Color(0xFF25231F)
-            : const Color(0xFFF0E8DB),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: colors.outlineVariant.withValues(alpha: 0.45),
+  Widget _buildCompetitions() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _competitionsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const _LoadingContent();
+        }
+
+        if (snapshot.hasError) {
+          return _ErrorContent(
+            message: 'Could not load competitions.',
+            onRetry: () {
+              setState(() {
+                _competitionsFuture =
+                    HomeService.getUpcomingCompetitions();
+              });
+            },
+          );
+        }
+
+        final competitions = snapshot.data ?? [];
+
+        if (competitions.isEmpty) {
+          return const _EmptyContent(
+            icon: Icons.emoji_events_outlined,
+            message: 'No upcoming competitions yet.',
+          );
+        }
+
+        return Column(
+          children: competitions
+              .map((competition) => _CompetitionCard(
+                    competition: competition,
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildDiscussions() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _discussionsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const _LoadingContent();
+        }
+
+        if (snapshot.hasError) {
+          return _ErrorContent(
+            message: 'Could not load discussions.',
+            onRetry: () {
+              setState(() {
+                _discussionsFuture =
+                    HomeService.getRecentDiscussions();
+              });
+            },
+          );
+        }
+
+        final discussions = snapshot.data ?? [];
+
+        if (discussions.isEmpty) {
+          return const _EmptyContent(
+            icon: Icons.forum_outlined,
+            message: 'No discussions have been published yet.',
+          );
+        }
+
+        return Column(
+          children: discussions
+              .map((discussion) => _DiscussionCard(
+                    discussion: discussion,
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _CompetitionCard extends StatelessWidget {
+  const _CompetitionCard({required this.competition});
+
+  final Map<String, dynamic> competition;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = competition['title']?.toString() ?? 'Untitled competition';
+    final description =
+        competition['description']?.toString().trim() ?? '';
+    final imageUrl = competition['image_url']?.toString();
+    final startsAt = DateTime.tryParse(
+      competition['starts_at']?.toString() ?? '',
+    );
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      color: Theme.of(context).cardTheme.color,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: AppTheme.muted.withValues(alpha: 0.15),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 7,
+          if (imageUrl != null && imageUrl.trim().isNotEmpty)
+            Image.network(
+              imageUrl,
+              width: double.infinity,
+              height: 160,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
-            decoration: BoxDecoration(
-              color: AppTheme.secondaryColor.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Text(
-              'YOUR SPACE TO GROW',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.brightness == Brightness.dark
-                    ? const Color(0xFFD2D3A2)
-                    : const Color(0xFF666A3D),
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Big things happen together.',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              height: 1.12,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Discover competitions, exchange ideas, and find '
-            'the right team to bring your next idea to life.',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              height: 1.55,
-              color: theme.colorScheme.onSurface
-                  .withValues(alpha: 0.75),
-            ),
-          ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              const Icon(
-                Icons.bolt_rounded,
-                color: AppTheme.primaryColor,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Your next opportunity starts here.',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-  }) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurface
-                .withValues(alpha: 0.65),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeatureCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String description,
-    required Color accent,
-  }) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: colors.outlineVariant.withValues(alpha: 0.55),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              icon,
-              color: accent,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.text,
+                      ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  description,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colors.onSurface.withValues(alpha: 0.7),
-                    height: 1.4,
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.muted,
+                        ),
                   ),
-                ),
+                ],
+                if (startsAt != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 15,
+                        color: AppTheme.primary,
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        'Starts ${_formatDate(startsAt)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.muted,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
-          Icon(
-            Icons.arrow_forward_ios_rounded,
-            size: 16,
-            color: colors.onSurface.withValues(alpha: 0.5),
-          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildConnectionCard(
-    ThemeData theme,
-    ColorScheme colors,
-  ) {
-    final Color statusColor = _connectionAvailable == true
-        ? Colors.green
-        : _connectionAvailable == false
-            ? colors.error
-            : colors.onSurface.withValues(alpha: 0.6);
+class _DiscussionCard extends StatelessWidget {
+  const _DiscussionCard({required this.discussion});
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: colors.outlineVariant.withValues(alpha: 0.55),
+  final Map<String, dynamic> discussion;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = discussion['title']?.toString() ?? 'Untitled discussion';
+    final body = discussion['body']?.toString().trim() ?? '';
+    final category = discussion['category']?.toString();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      color: Theme.of(context).cardTheme.color,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: AppTheme.muted.withValues(alpha: 0.15),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                _connectionAvailable == true
-                    ? Icons.check_circle_rounded
-                    : _connectionAvailable == false
-                        ? Icons.error_outline_rounded
-                        : Icons.cloud_outlined,
-                color: statusColor,
-                size: 25,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (category != null && category.trim().isNotEmpty) ...[
+              Text(
+                category,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _connectionAvailable == true
-                      ? 'Connection check completed'
-                      : _connectionAvailable == false
-                          ? 'Connection check failed'
-                          : 'Supabase connection',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              if (_isCheckingConnection)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                  ),
-                ),
+              const SizedBox(height: 6),
             ],
-          ),
-          if (_connectionMessage != null) ...[
-            const SizedBox(height: 12),
             Text(
-              _connectionMessage!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colors.onSurface.withValues(alpha: 0.75),
-              ),
+              title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.text,
+                  ),
             ),
-          ] else ...[
-            const SizedBox(height: 8),
-            Text(
-              'Check whether the configured Supabase client responds.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colors.onSurface.withValues(alpha: 0.7),
+            if (body.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                body,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.muted,
+                    ),
               ),
-            ),
+            ],
           ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed:
-                  _isCheckingConnection ? null : _checkConnection,
-              icon: const Icon(Icons.sync_rounded),
-              label: Text(
-                _isCheckingConnection
-                    ? 'Checking...'
-                    : 'Check connection',
-              ),
-            ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingContent extends StatelessWidget {
+  const _LoadingContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 28),
+      child: Center(
+        child: CircularProgressIndicator(
+          color: AppTheme.primary,
+          strokeWidth: 2.5,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyContent extends StatelessWidget {
+  const _EmptyContent({
+    required this.icon,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
+      decoration: BoxDecoration(
+        color: AppTheme.muted.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 30, color: AppTheme.muted),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppTheme.muted),
           ),
         ],
       ),
     );
   }
+}
+
+class _ErrorContent extends StatelessWidget {
+  const _ErrorContent({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        children: [
+          Text(
+            message,
+            style: const TextStyle(color: AppTheme.error),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Try again'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatDate(DateTime date) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  return '${date.day} ${months[date.month - 1]} ${date.year}';
 }
