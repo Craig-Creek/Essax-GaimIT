@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/app_theme.dart';
-
 class CompetitionBanner extends StatelessWidget {
   const CompetitionBanner({super.key});
+
+  static const Color _orange = Color(0xFFE87936);
+  static const Color _darkOrange = Color(0xFFC65B25);
 
   @override
   Widget build(BuildContext context) {
@@ -12,10 +13,7 @@ class CompetitionBanner extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            AppTheme.primary,
-            Color(0xFFC65B25),
-          ],
+          colors: [_orange, _darkOrange],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
