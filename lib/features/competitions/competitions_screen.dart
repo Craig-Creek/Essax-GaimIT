@@ -622,4 +622,66 @@ class _CompetitionDetailScreenState extends State<CompetitionDetailScreen> {
       _showMessage(
         'Sign-in is required before you can join a competition.',
       );
+      return;
+    }
+
+    final competitionId = widget.competition['id'];
+
+    if (competitionId == null) {
+      _showMessage('This competition is missing its identifier.');
+      return;
+    }
+
+    setState(() => _joining = true);
+
+    try {
+      await supabase.from('competition_applications').insert({
+        'competition_id': competitionId,
+        'applicant_id': user.id,
+        'message': 'Application submitted through Essax.',
+        'status': 'pending',
+      });
+
+      if (!mounted) return;
+
+      _showMessage('Your application has been submitted!');
+    } catch (error) {
+      if (!mounted) return;
+
+      final message = error.toString().toLowerCase().contains('duplicate')
+          ? 'You have already applied to this competition.'
+          : 'Could not join this competition. Please try again.';
+
+      _showMessage(message);
+    } finally {
+      if (mounted) {
+        setState(() => _joining = false);
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      avatar: Icon(icon, size: 17),
+      label: Text(label),
+    );
+  }
+}
    
