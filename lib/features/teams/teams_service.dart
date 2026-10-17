@@ -1,227 +1,201 @@
-import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../app/app_theme.dart';
-import 'create_team_screen.dart';
-import 'team_details_screen.dart';
-import 'teams_service.dart';
-import 'widgets/create_team_banner.dart';
-import 'widgets/team_card.dart';
+import '../../core/supabase_client.dart';
 
-class TeamsScreen extends StatefulWidget {
-  const TeamsScreen({super.key});
+class TeamsService {
+  TeamsService._();
 
-  @override
-  State<TeamsScreen> createState() => _TeamsScreenState();
-}
+  static SupabaseClient get _db => supabase;
 
-class _TeamsScreenState extends State<TeamsScreen> {
-  late Future<List<Map<String, dynamic>>> _teamsFuture;
+  static String? get currentUserId => _db.auth.currentUser?.id;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadTeams();
+  static Future<List<Map<String, dynamic>>> getTeams() async {
+    final response = await _db
+        .from('teams')
+        .select('id, name, description, avatar_url, owner_id, is_public, created_at')
+        .eq('is_public', true)
+        .order('created_at', ascending: false);
+
+    final teams = List<Map<String, dynamic>>.from(response);
+
+    for (final team in teams) {
+      try {
+        final memberships = await _db
+            .from('team_memberships')
+            .select('user_id')
+            .eq('team_id', team['id'])
+            .eq('status', 'active');
+
+        team['member_count'] = memberships.length;
+      } catch (_) {
+        team['member_count'] = 0;
+      }
+    }
+
+    return teams;
   }
 
-  void _loadTeams() {
-    _teamsFuture = TeamsService.getTeams();
+  static Future<Map<String, dynamic>> getTeamDetails(
+    String teamId,
+  ) async {
+    final team = await _db
+        .from('teams')
+        .select()
+        .eq('id', teamId)
+        .maybeSingle();
+
+    if (team == null) {
+      throw Exception('This team could not be found.');
+    }
+
+    final memberships = await _db
+        .from('team_memberships')
+        .select('user_id, role, status, created_at')
+        .eq('team_id', teamId)
+        .eq('status', 'active');
+
+    return {
+      ...team,
+      'members': List<Map<String, dynamic>>.from(memberships),
+      'member_count': memberships.length,
+    };
   }
 
-  Future<void> _refresh() async {
-    final future = TeamsService.getTeams();
+  static Future<void> createTeam({
+    required String name,
+    required String description,
+  }) async {
+    final userId = currentUserId;
 
-    setState(() {
-      _teamsFuture = future;
+    if (userId == null) {
+      throw Exception('Please sign in before creating a team.');
+    }
+
+    final cleanName = name.trim();
+    final cleanDescription = description.trim();
+
+    if (cleanName.length < 2 || cleanName.length > 100) {
+      throw Exception('Team name must contain 2–100 characters.');
+    }
+
+    await _db.from('teams').insert({
+      'owner_id': userId,
+      'name': cleanName,
+      'description': cleanDescription,
+      'is_public': true,
     });
-
-    await future;
   }
 
-  Future<void> _openCreateTeam() async {
-    if (TeamsService.currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please sign in to create a team.'),
-        ),
-      );
+  static Future<void> requestToJoin(String teamId) async {
+    final userId = currentUserId;
+
+    if (userId == null) {
+      throw Exception('Please sign in to request membership.');
+    }
+
+    final existing = await _db
+        .from('team_memberships')
+        .select('status')
+        .eq('team_id', teamId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (existing != null) {
+      final status = existing['status'];
+
+      if (status == 'active') {
+        throw Exception('You are already a member of this team.');
+      }
+
+      if (status == 'pending') {
+        throw Exception('Your request is already pending.');
+      }
+
+      await _db
+          .from('team_memberships')
+          .update({
+            'role': 'member',
+            'status': 'pending',
+          })
+          .eq('team_id', teamId)
+          .eq('user_id', userId);
+
       return;
     }
 
-    final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => const CreateTeamScreen(),
-      ),
-    );
+    await _db.from('team_memberships').insert({
+      'team_id': teamId,
+      'user_id': userId,
+      'role': 'member',
+      'status': 'pending',
+    });
+  }
 
-    if (created == true && mounted) {
-      await _refresh();
+  static Future<List<Map<String, dynamic>>> getJoinRequests(
+    String teamId,
+  ) async {
+    final userId = currentUserId;
+
+    if (userId == null) {
+      throw Exception('Please sign in first.');
     }
+
+    final team = await _db
+        .from('teams')
+        .select('owner_id')
+        .eq('id', teamId)
+        .single();
+
+    if (team['owner_id'] != userId) {
+      throw Exception('Only the team owner can review requests.');
+    }
+
+    final response = await _db
+        .from('team_memberships')
+        .select('team_id, user_id, role, status, created_at')
+        .eq('team_id', teamId)
+        .eq('status', 'pending')
+        .order('created_at');
+
+    return List<Map<String, dynamic>>.from(response);
   }
 
-  void _openTeam(Map<String, dynamic> team) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => TeamDetailsScreen(team: team),
-      ),
-    );
+  static Future<void> approveRequest({
+    required String teamId,
+    required String userId,
+  }) async {
+    await _db
+        .from('team_memberships')
+        .update({'status': 'active'})
+        .eq('team_id', teamId)
+        .eq('user_id', userId)
+        .eq('status', 'pending');
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  static Future<void> rejectRequest({
+    required String teamId,
+    required String userId,
+  }) async {
+    await _db
+        .from('team_memberships')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+  }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Teams'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh teams',
-            onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  CreateTeamBanner(
-                    onCreate: _openCreateTeam,
-                  ),
-                  const SizedBox(height: 28),
-                  Text(
-                    'Find your team',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Discover communities, request to join, '
-                    'and compete together.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.7,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ]),
-              ),
-            ),
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: _teamsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
+  static Future<String?> getMembershipStatus(String teamId) async {
+    final userId = currentUserId;
 
-                if (snapshot.hasError) {
-                  return SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.cloud_off_rounded,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Could not load teams.',
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            FilledButton(
-                              onPressed: _refresh,
-                              child: const Text('Try again'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }
+    if (userId == null) return null;
 
-                final teams = snapshot.data ?? [];
+    final response = await _db
+        .from('team_memberships')
+        .select('status')
+        .eq('team_id', teamId)
+        .eq('user_id', userId)
+        .maybeSingle();
 
-                if (teams.isEmpty) {
-                  return SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.groups_rounded,
-                              size: 60,
-                              color: AppTheme.primaryColor,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Your community starts here',
-                              style: theme.textTheme.titleLarge,
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Create a team or check back for '
-                              'more teams to discover.',
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 18),
-                            FilledButton.icon(
-                              onPressed: _openCreateTeam,
-                              icon: const Icon(Icons.add_rounded),
-                              label: const Text('Create a team'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final team = teams[index];
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: TeamCard(
-                            team: team,
-                            onTap: () => _openTeam(team),
-                          ),
-                        );
-                      },
-                      childCount: teams.length,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+    return response?['status']?.toString();
   }
 }
